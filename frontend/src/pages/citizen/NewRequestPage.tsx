@@ -92,7 +92,13 @@ export default function NewRequestPage() {
     formState: { errors },
   } = useForm<NewRequestFormValues>({
     resolver: zodResolver(newRequestFormSchema),
-    defaultValues: { categoryId: '', subCountyId: '', locationText: '', description: '' },
+    defaultValues: {
+      categoryId: '',
+      subCountyId: '',
+      locationText: '',
+      description: '',
+      isAnonymous: false,
+    },
   });
 
   const onSubmit = handleSubmit(async (values) => {
@@ -106,6 +112,8 @@ export default function NewRequestPage() {
         image,
         payload: {
           ...values,
+          // Guests are always anonymous (the database enforces this too).
+          isAnonymous: user.isGuest || values.isAnonymous,
           latitude: coords?.latitude ?? null,
           longitude: coords?.longitude ?? null,
         },
@@ -209,6 +217,22 @@ export default function NewRequestPage() {
             {...register('description')}
           />
           <ImagePicker file={image} onChange={setImage} disabled={submit.isPending} />
+          {user?.isGuest ? (
+            <p className="field__hint request-form__anonymous-note">
+              <Icon name="bx-lock-alt" /> You are reporting as a guest, so this report is anonymous.
+            </p>
+          ) : (
+            <div className="field">
+              <label className="checkbox">
+                <input type="checkbox" className="checkbox__input" {...register('isAnonymous')} />
+                Submit anonymously
+              </label>
+              <p className="field__hint">
+                County officers will not see your name or phone number. You still get updates on
+                this request.
+              </p>
+            </div>
+          )}
           <div className="form__actions">
             <ButtonLink to="/requests" variant="secondary">
               Cancel

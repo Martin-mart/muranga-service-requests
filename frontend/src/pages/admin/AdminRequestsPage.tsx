@@ -39,7 +39,11 @@ const COLUMNS: Column<RequestSummary>[] = [
       </>
     ),
   },
-  { key: 'citizen', header: 'Citizen', render: (row) => row.citizen?.fullName ?? 'Unknown' },
+  {
+    key: 'citizen',
+    header: 'Citizen',
+    render: (row) => (row.isAnonymous ? 'Anonymous' : (row.citizen?.fullName ?? 'Unknown')),
+  },
   {
     key: 'submitted',
     header: 'Submitted',

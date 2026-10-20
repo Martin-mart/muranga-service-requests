@@ -42,6 +42,7 @@ export function createAuthenticate(deps: AuthenticateDeps): RequestHandler {
         role: profile.role,
         fullName: profile.fullName,
         phone: profile.phone,
+        isGuest: claims.isGuest,
       },
     };
     next();

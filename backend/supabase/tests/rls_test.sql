@@ -426,6 +426,76 @@ end $$;
 reset role;
 
 -- -----------------------------------------------------------------------------
+-- Anonymous submissions (0600): guests and opt-in anonymous citizens.
+-- -----------------------------------------------------------------------------
+insert into auth.users (id, email, email_confirmed_at, is_anonymous) values
+  ('00000000-0000-4000-8000-00000000000e', null, null, true),
+  ('00000000-0000-4000-8000-00000000000f', 'f@test.local', now(), false);
+
+select pg_temp.act_as('00000000-0000-4000-8000-00000000000e');
+set local role authenticated;
+do $$
+declare r record;
+begin
+  -- A guest (no email) may submit, and their request is always anonymous even
+  -- if the client asks otherwise.
+  insert into public.service_requests (category_id, sub_county_id, location_text, description, is_anonymous)
+  select c.id, s.id, 'Kenol bus park', 'Guest report about overflowing garbage.', false
+    from public.categories c, public.sub_counties s limit 1
+  returning * into r;
+  if r.citizen_id <> '00000000-0000-4000-8000-00000000000e' then raise exception 'FAIL: guest citizen_id'; end if;
+  if not r.is_anonymous then raise exception 'FAIL: guest request not forced anonymous'; end if;
+  if (select count(*) from public.service_requests) <> 1 then
+    raise exception 'FAIL: guest sees requests other than their own';
+  end if;
+  raise notice 'PASS: guest can submit; request forced anonymous; sees only own';
+end $$;
+reset role;
+
+select pg_temp.act_as('00000000-0000-4000-8000-00000000000f');
+set local role authenticated;
+do $$
+declare r record;
+begin
+  insert into public.service_requests (category_id, sub_county_id, location_text, description, is_anonymous)
+  select c.id, s.id, 'Maragua town', 'Citizen choosing to stay anonymous.', true
+    from public.categories c, public.sub_counties s limit 1
+  returning * into r;
+  if not r.is_anonymous then raise exception 'FAIL: citizen opt-in anonymity not stored'; end if;
+  raise notice 'PASS: verified citizen can opt in to anonymity';
+end $$;
+reset role;
+
+select pg_temp.act_as('00000000-0000-4000-8000-00000000000d');
+set local role authenticated;
+do $$
+begin
+  begin
+    update public.service_requests set is_anonymous = false
+     where citizen_id = '00000000-0000-4000-8000-00000000000f';
+    raise exception 'FAIL: admin unmasked an anonymous request';
+  exception when insufficient_privilege or sqlstate 'MR004' then
+    raise notice 'PASS: admin cannot unmask an anonymous request';
+  end;
+end $$;
+reset role;
+
+select pg_temp.act_as('00000000-0000-4000-8000-00000000000c');
+set local role authenticated;
+do $$
+begin
+  begin
+    insert into public.service_requests (category_id, sub_county_id, location_text, description, is_anonymous)
+    select c.id, s.id, 'Somewhere', 'Unverified, not a guest, trying anonymity.', true
+      from public.categories c, public.sub_counties s limit 1;
+    raise exception 'FAIL: unverified non-guest inserted an anonymous request';
+  exception when insufficient_privilege then
+    raise notice 'PASS: unverified non-guest still blocked';
+  end;
+end $$;
+reset role;
+
+-- -----------------------------------------------------------------------------
 -- Anonymous visitors: reference data only.
 -- -----------------------------------------------------------------------------
 select set_config('request.jwt.claims', '{"role":"anon"}', true);

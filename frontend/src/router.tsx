@@ -8,6 +8,7 @@ import { RouteError } from './components/layout/RouteError';
 const LandingPage = lazy(() => import('./pages/LandingPage'));
 const LoginPage = lazy(() => import('./pages/auth/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/auth/RegisterPage'));
+const GuestPage = lazy(() => import('./pages/auth/GuestPage'));
 const CheckEmailPage = lazy(() => import('./pages/auth/CheckEmailPage'));
 const AuthCallbackPage = lazy(() => import('./pages/auth/AuthCallbackPage'));
 const MyRequestsPage = lazy(() => import('./pages/citizen/MyRequestsPage'));
@@ -41,6 +42,7 @@ export const router = createBrowserRouter([
           </GuestOnly>
         ),
       },
+      { path: 'guest', element: <GuestPage /> },
       { path: 'check-email', element: <CheckEmailPage /> },
       { path: 'auth/callback', element: <AuthCallbackPage /> },
       {

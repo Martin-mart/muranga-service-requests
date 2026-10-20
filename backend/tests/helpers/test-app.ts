@@ -65,7 +65,7 @@ export function buildTestApp(services: ServiceMocks = createServiceMocks()) {
       verify: (token) => {
         const userId = tokenToUser[token];
         return userId
-          ? Promise.resolve({ userId, email: `${userId}@test.local` })
+          ? Promise.resolve({ userId, email: `${userId}@test.local`, isGuest: false })
           : Promise.reject(
               unauthenticated('Your session is invalid or has expired. Please sign in again.'),
             );

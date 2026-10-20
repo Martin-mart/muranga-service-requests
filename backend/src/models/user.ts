@@ -16,4 +16,6 @@ export interface AuthUser {
   role: Role;
   fullName: string;
   phone: string | null;
+  /** Anonymous (guest) session: can submit and track, has no email. */
+  isGuest: boolean;
 }

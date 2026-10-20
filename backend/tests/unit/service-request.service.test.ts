@@ -9,7 +9,14 @@ import { AppError, conflict } from '../../src/utils/errors.js';
 
 const ctx: AuthContext = {
   db: {} as SupabaseClient,
-  user: { id: 'user-1', email: null, role: 'citizen', fullName: 'Wanjiru', phone: null },
+  user: {
+    id: 'user-1',
+    email: null,
+    role: 'citizen',
+    fullName: 'Wanjiru',
+    phone: null,
+    isGuest: false,
+  },
 };
 
 const summary = { id: 'req-1', referenceNumber: 'MRG-2026-000001' } as ServiceRequestSummary;
@@ -19,6 +26,7 @@ const input = {
   subCountyId: 's',
   locationText: 'Kenol',
   description: 'Water pipe burst near the stage',
+  isAnonymous: false,
 };
 
 function setup() {

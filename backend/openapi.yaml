@@ -646,13 +646,16 @@ components:
 
     Me:
       type: object
-      required: [id, email, role, fullName, phone]
+      required: [id, email, role, fullName, phone, isGuest]
       properties:
         id: { type: string, format: uuid }
-        email: { type: string, nullable: true }
+        email: { type: string, nullable: true, description: Null for guests. }
         role: { $ref: '#/components/schemas/Role' }
         fullName: { type: string }
         phone: { type: string, nullable: true }
+        isGuest:
+          type: boolean
+          description: Signed in with Supabase anonymous sign-in (no account).
 
     Role:
       type: string
@@ -693,6 +696,12 @@ components:
           maximum: 5.1
           description: Must be provided together with longitude.
         longitude: { type: number, nullable: true, minimum: 33.8, maximum: 42.0 }
+        isAnonymous:
+          type: boolean
+          default: false
+          description: >
+            Hide the submitter's name and phone from officers. Always true for
+            guests, regardless of the value sent.
 
     CitizenSummary:
       type: object
@@ -717,6 +726,7 @@ components:
           createdAt,
           updatedAt,
           resolvedAt,
+          isAnonymous,
           citizen,
         ]
       properties:
@@ -730,10 +740,11 @@ components:
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
         resolvedAt: { type: string, format: date-time, nullable: true }
+        isAnonymous: { type: boolean }
         citizen:
           allOf:
             - $ref: '#/components/schemas/CitizenSummary'
-          description: Populated for admin views only.
+          description: Populated for admin views only, and null when isAnonymous is true.
 
     StatusHistoryEntry:
       type: object

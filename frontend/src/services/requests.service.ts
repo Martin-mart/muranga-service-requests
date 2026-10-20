@@ -22,6 +22,7 @@ export interface NewRequestPayload {
   description: string;
   latitude: number | null;
   longitude: number | null;
+  isAnonymous: boolean;
 }
 
 /**

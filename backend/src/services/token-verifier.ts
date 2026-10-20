@@ -6,6 +6,8 @@ import { unauthenticated } from '../utils/errors.js';
 export interface VerifiedToken {
   userId: string;
   email: string | null;
+  /** Signed in with Supabase anonymous sign-in (no email, no password). */
+  isGuest: boolean;
 }
 
 export interface TokenVerifier {
@@ -16,11 +18,16 @@ const claimsSchema = z.object({
   sub: z.uuid(),
   role: z.literal('authenticated'),
   email: z.string().optional(),
+  is_anonymous: z.boolean().optional(),
 });
 
 function toVerified(payload: JWTPayload): VerifiedToken {
   const claims = claimsSchema.parse(payload);
-  return { userId: claims.sub, email: claims.email ?? null };
+  return {
+    userId: claims.sub,
+    email: claims.email || null,
+    isGuest: claims.is_anonymous ?? false,
+  };
 }
 
 /**

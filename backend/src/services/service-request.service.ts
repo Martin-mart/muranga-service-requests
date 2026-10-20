@@ -67,6 +67,7 @@ export function createServiceRequestService(deps: Deps): ServiceRequestService {
           latitude: input.latitude ?? null,
           longitude: input.longitude ?? null,
           idempotencyKey: idempotencyKey ?? null,
+          isAnonymous: input.isAnonymous,
         });
         return { request, created: true };
       } catch (error) {

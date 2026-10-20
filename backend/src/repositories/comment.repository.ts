@@ -7,7 +7,8 @@ import { throwIfDbError } from '../utils/db-errors.js';
 import { roleSchema } from './rows.js';
 
 const COLUMNS =
-  'id, request_id, author_role, body, is_public, created_at, author:profiles(full_name)';
+  'id, request_id, author_role, body, is_public, created_at, author:profiles(full_name), ' +
+  'request:service_requests(is_anonymous)';
 
 const commentRow = z
   .object({
@@ -18,12 +19,17 @@ const commentRow = z
     is_public: z.boolean(),
     created_at: z.string(),
     author: z.object({ full_name: z.string() }).nullable().optional(),
+    request: z.object({ is_anonymous: z.boolean() }).nullable().optional(),
   })
   .transform((row): RequestComment => ({
     id: row.id,
     requestId: row.request_id,
     authorRole: row.author_role,
-    authorName: row.author?.full_name ?? null,
+    // The submitter of an anonymous request stays unnamed in the thread too.
+    authorName:
+      row.author_role === 'citizen' && row.request?.is_anonymous
+        ? null
+        : (row.author?.full_name ?? null),
     body: row.body,
     isPublic: row.is_public,
     createdAt: row.created_at,

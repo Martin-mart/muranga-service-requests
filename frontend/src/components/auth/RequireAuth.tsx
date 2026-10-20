@@ -48,7 +48,10 @@ export function RequireAuth({ requiredRole, children }: RequireAuthProps) {
   return children;
 }
 
-/** Signed-in users skip the login/register pages. */
+/**
+ * Signed-in users skip the login/register pages. Guests (anonymous sessions)
+ * may still use them to sign in or create a real account.
+ */
 export function GuestOnly({ children }: { children: ReactNode }) {
   const { status, user } = useAuth();
   if (status === 'loading') {
@@ -59,6 +62,7 @@ export function GuestOnly({ children }: { children: ReactNode }) {
     if (!user) {
       return <Spinner label="Loading your profile" />;
     }
+    if (user.isGuest) return children;
     return <Navigate to={user.role === 'admin' ? '/admin' : '/requests'} replace />;
   }
   return children;

@@ -17,7 +17,7 @@ import { nullableNumber, referenceRow, roleSchema, statusSchema } from './rows.j
 // Explicit column lists (never `*`): stable API shape, no accidental exposure of
 // internal columns such as search_vector or idempotency_key.
 const SUMMARY_COLUMNS =
-  'id, reference_number, status, location_text, description, created_at, updated_at, resolved_at, ' +
+  'id, reference_number, status, location_text, description, created_at, updated_at, resolved_at, is_anonymous, ' +
   'category:categories(id, slug, name), sub_county:sub_counties(id, slug, name)';
 const CITIZEN_EMBED = 'citizen:profiles(id, full_name, phone)';
 // History is embedded in the same round trip (no N+1 per request).
@@ -44,6 +44,7 @@ const summaryRow = z
     created_at: z.string(),
     updated_at: z.string(),
     resolved_at: z.string().nullable(),
+    is_anonymous: z.boolean(),
     category: referenceRow,
     sub_county: referenceRow,
     citizen: citizenRow,
@@ -59,7 +60,9 @@ const summaryRow = z
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     resolvedAt: row.resolved_at,
-    citizen: row.citizen,
+    isAnonymous: row.is_anonymous,
+    // Officers can read every profile under RLS, so anonymity is applied here.
+    citizen: row.is_anonymous ? null : row.citizen,
   }));
 
 const historyRow = z
@@ -114,7 +117,11 @@ function parseDetail(data: unknown, includeCitizen: boolean): ServiceRequestDeta
     latitude: extra.latitude,
     longitude: extra.longitude,
     imagePath: extra.image_path,
-    history: extra.history,
+    history: summary.isAnonymous
+      ? extra.history.map((entry) =>
+          entry.actorRole === 'citizen' ? { ...entry, actorName: null } : entry,
+        )
+      : extra.history,
   };
 }
 
@@ -161,6 +168,7 @@ export const serviceRequestRepository: ServiceRequestRepository = {
         latitude: input.latitude,
         longitude: input.longitude,
         idempotency_key: input.idempotencyKey,
+        is_anonymous: input.isAnonymous,
       })
       .select(SUMMARY_COLUMNS)
       .single();

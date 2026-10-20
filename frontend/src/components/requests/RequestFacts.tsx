@@ -61,6 +61,11 @@ export function RequestFacts({ request }: { request: RequestView }) {
           'Not yet'
         )}
       </Fact>
+      {request.isAnonymous && (
+        <Fact icon="bx-user" term="Reported by">
+          Anonymous
+        </Fact>
+      )}
       {request.citizen && (
         <Fact icon="bx-user" term="Reported by">
           {request.citizen.fullName}

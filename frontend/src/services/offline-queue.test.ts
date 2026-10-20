@@ -8,6 +8,7 @@ const payload = {
   description: 'Burst pipe on road',
   latitude: null,
   longitude: null,
+  isAnonymous: false,
 };
 
 describe('offlineQueue', () => {

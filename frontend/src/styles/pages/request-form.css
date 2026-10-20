@@ -26,3 +26,9 @@
   font-family: var(--font-mono);
   font-size: var(--text-sm);
 }
+
+.request-form__anonymous-note {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}

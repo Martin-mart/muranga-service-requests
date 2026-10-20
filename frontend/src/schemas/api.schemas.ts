@@ -17,6 +17,8 @@ export const meSchema = z.object({
   role: roleSchema,
   fullName: z.string(),
   phone: z.string().nullable(),
+  /** Anonymous (guest) session: no account, can submit and track on this device. */
+  isGuest: z.boolean().default(false),
 });
 
 export const citizenSummarySchema = z.object({
@@ -36,6 +38,8 @@ export const requestSummarySchema = z.object({
   createdAt: z.string(),
   updatedAt: z.string(),
   resolvedAt: z.string().nullable(),
+  /** Submitter hidden from officers; `citizen` is then always null. */
+  isAnonymous: z.boolean().default(false),
   citizen: citizenSummarySchema.nullable(),
 });
 

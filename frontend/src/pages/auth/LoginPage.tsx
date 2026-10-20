@@ -92,7 +92,8 @@ export default function LoginPage() {
           </Button>
         </form>
         <p className="auth-card__footer">
-          New here? <Link to="/register">Create an account</Link>
+          New here? <Link to="/register">Create an account</Link> or{' '}
+          <Link to="/guest">report without an account</Link>
         </p>
       </Card>
     </div>

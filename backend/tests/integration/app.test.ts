@@ -172,6 +172,39 @@ describe('service requests', () => {
     );
   });
 
+  it('passes the anonymous choice through, defaulting to false', async () => {
+    const { app, services } = buildTestApp();
+    services.requests.create.mockResolvedValue({ request: { id: REQUEST_ID }, created: true });
+
+    await request(app)
+      .post('/api/v1/requests')
+      .set(auth(CITIZEN_TOKEN))
+      .send({ ...validRequest, isAnonymous: true })
+      .expect(201);
+    expect(services.requests.create).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({ isAnonymous: true }),
+      undefined,
+    );
+
+    await request(app)
+      .post('/api/v1/requests')
+      .set(auth(CITIZEN_TOKEN))
+      .send(validRequest)
+      .expect(201);
+    expect(services.requests.create).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({ isAnonymous: false }),
+      undefined,
+    );
+
+    await request(app)
+      .post('/api/v1/requests')
+      .set(auth(CITIZEN_TOKEN))
+      .send({ ...validRequest, isAnonymous: 'yes' })
+      .expect(422);
+  });
+
   it('marks personal data as non-cacheable', async () => {
     const { app, services } = buildTestApp();
     services.requests.listOwn.mockResolvedValue({ items: [], nextCursor: null });

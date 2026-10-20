@@ -19,7 +19,8 @@ function authorName(comment: RequestComment, viewerRole: Role): string {
   if (comment.authorRole === 'admin') {
     return viewerRole === 'admin' && comment.authorName ? comment.authorName : 'County officer';
   }
-  return viewerRole === 'citizen' ? 'You' : (comment.authorName ?? 'Citizen');
+  // A missing name means the request was submitted anonymously.
+  return viewerRole === 'citizen' ? 'You' : (comment.authorName ?? 'Anonymous citizen');
 }
 
 function CommentItem({ comment, viewerRole }: { comment: RequestComment; viewerRole: Role }) {

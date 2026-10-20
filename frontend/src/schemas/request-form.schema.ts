@@ -19,6 +19,7 @@ export const newRequestFormSchema = z.object({
     .trim()
     .min(10, 'Describe the problem in at least 10 characters')
     .max(2000, 'Keep the description under 2000 characters'),
+  isAnonymous: z.boolean(),
 });
 
 export type NewRequestFormValues = z.infer<typeof newRequestFormSchema>;

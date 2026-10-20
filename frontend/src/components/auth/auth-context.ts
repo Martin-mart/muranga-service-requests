@@ -12,6 +12,7 @@ export interface AuthApi {
   profileError: unknown;
   retryProfile: () => void;
   signIn: (email: string, password: string, captchaToken?: string) => Promise<void>;
+  continueAsGuest: (captchaToken?: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 

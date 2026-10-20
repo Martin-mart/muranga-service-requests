@@ -15,6 +15,8 @@ export const createRequestSchema = z
     description: multilineText(10, 2000),
     latitude: z.number().min(KENYA_BOUNDS.minLat).max(KENYA_BOUNDS.maxLat).nullish(),
     longitude: z.number().min(KENYA_BOUNDS.minLng).max(KENYA_BOUNDS.maxLng).nullish(),
+    // Guests are always anonymous (enforced in the database).
+    isAnonymous: z.boolean().default(false),
   })
   .refine(
     (value) =>

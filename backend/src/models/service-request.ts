@@ -21,7 +21,9 @@ export interface ServiceRequestSummary {
   createdAt: string;
   updatedAt: string;
   resolvedAt: string | null;
-  /** Only populated for admin views. */
+  /** Submitter hidden from officers (guest, or citizen opted in). */
+  isAnonymous: boolean;
+  /** Only populated for admin views, and never for anonymous requests. */
   citizen: CitizenSummary | null;
 }
 
@@ -30,7 +32,10 @@ export interface StatusHistoryEntry {
   fromStatus: RequestStatus | null;
   toStatus: RequestStatus;
   actorRole: Role;
-  /** Admin-only: citizens cannot read officers' profiles (RLS returns null). */
+  /**
+   * Admin-only: citizens cannot read officers' profiles (RLS returns null).
+   * Null for the submitter's own entries on anonymous requests.
+   */
   actorName: string | null;
   note: string | null;
   createdAt: string;
@@ -56,6 +61,7 @@ export interface NewServiceRequest {
   latitude: number | null;
   longitude: number | null;
   idempotencyKey: string | null;
+  isAnonymous: boolean;
 }
 
 export interface AdminRequestFilters {

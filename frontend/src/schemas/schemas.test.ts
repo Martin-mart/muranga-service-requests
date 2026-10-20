@@ -34,6 +34,7 @@ describe('newRequestFormSchema', () => {
     subCountyId: 's',
     locationText: 'Kenol stage',
     description: 'Burst pipe flooding the road',
+    isAnonymous: false,
   };
 
   it('accepts a complete request', () => {

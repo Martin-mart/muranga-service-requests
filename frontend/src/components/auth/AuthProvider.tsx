@@ -45,6 +45,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await authService.signIn(email, password, captchaToken);
   }, []);
 
+  const continueAsGuest = useCallback(async (captchaToken?: string) => {
+    await authService.continueAsGuest(captchaToken);
+  }, []);
+
   const signOut = useCallback(async () => {
     await authService.signOut();
     queryClient.clear();
@@ -65,9 +69,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       profileError: profile.error,
       retryProfile,
       signIn,
+      continueAsGuest,
       signOut,
     }),
-    [status, session, profile.data, profile.error, retryProfile, signIn, signOut],
+    [status, session, profile.data, profile.error, retryProfile, signIn, continueAsGuest, signOut],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

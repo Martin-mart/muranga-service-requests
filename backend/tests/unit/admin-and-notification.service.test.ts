@@ -9,7 +9,7 @@ import type { ServiceRequestRepository } from '../../src/repositories/service-re
 
 const asRole = (role: 'citizen' | 'admin'): AuthContext => ({
   db: {} as SupabaseClient,
-  user: { id: `${role}-1`, email: null, role, fullName: role, phone: null },
+  user: { id: `${role}-1`, email: null, role, fullName: role, phone: null, isGuest: false },
 });
 
 describe('AdminRequestService', () => {

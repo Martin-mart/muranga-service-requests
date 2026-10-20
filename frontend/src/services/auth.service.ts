@@ -52,6 +52,26 @@ export async function signIn(
 }
 
 /**
+ * Starts a guest session (Supabase anonymous sign-in): a real but nameless
+ * account that lives on this device. RLS applies exactly as for citizens, and
+ * the database marks every request it submits as anonymous.
+ */
+export async function continueAsGuest(captchaToken?: string): Promise<void> {
+  const { error } = await supabase.auth.signInAnonymously({
+    options: captchaToken ? { captchaToken } : {},
+  });
+  if (error) {
+    const message =
+      error.code === 'anonymous_provider_disabled'
+        ? 'Reporting without an account is not available right now. Please create an account.'
+        : error.code === 'captcha_failed'
+          ? 'CAPTCHA verification failed. Please try again.'
+          : 'Could not start guest mode. Please try again.';
+    throw new ApiError(error.status ?? 400, error.code ?? 'AUTH_FAILED', message);
+  }
+}
+
+/**
  * Signs out and removes every trace of the session's data from this device:
  * API responses cached by the service worker for offline use are deleted so
  * the next person using a shared phone cannot see them.

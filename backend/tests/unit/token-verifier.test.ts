@@ -7,9 +7,20 @@ const SECRET = 'super-secret-jwt-token-with-at-least-32-characters';
 const USER_ID = '2b9b1f9e-1a2b-4c3d-8e4f-111111111111';
 
 async function sign(
-  overrides: { secret?: string; iss?: string; aud?: string; role?: string; exp?: string } = {},
+  overrides: {
+    secret?: string;
+    iss?: string;
+    aud?: string;
+    role?: string;
+    exp?: string;
+    claims?: Record<string, unknown>;
+  } = {},
 ) {
-  return new SignJWT({ role: overrides.role ?? 'authenticated', email: 'a@test.local' })
+  return new SignJWT({
+    role: overrides.role ?? 'authenticated',
+    email: 'a@test.local',
+    ...overrides.claims,
+  })
     .setProtectedHeader({ alg: 'HS256' })
     .setSubject(USER_ID)
     .setIssuer(overrides.iss ?? `${SUPABASE_URL}/auth/v1`)
@@ -26,7 +37,14 @@ describe('token verifier (HS256 legacy mode)', () => {
     await expect(verifier.verify(await sign())).resolves.toEqual({
       userId: USER_ID,
       email: 'a@test.local',
+      isGuest: false,
     });
+  });
+
+  it('marks anonymous sign-ins as guests with no email', async () => {
+    await expect(
+      verifier.verify(await sign({ claims: { email: '', is_anonymous: true } })),
+    ).resolves.toEqual({ userId: USER_ID, email: null, isGuest: true });
   });
 
   it.each([

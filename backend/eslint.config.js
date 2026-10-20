@@ -3,7 +3,8 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['dist', 'coverage', 'node_modules', 'tests/load/k6-ramp.js'] },
+  // api/index.js is the Vercel entry shim: plain JS that loads the compiled dist/.
+  { ignores: ['dist', 'coverage', 'node_modules', 'tests/load/k6-ramp.js', 'api'] },
   js.configs.recommended,
   ...tseslint.configs.strictTypeChecked,
   {

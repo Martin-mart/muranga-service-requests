@@ -51,6 +51,15 @@ function UserMenu() {
   const toast = useToast();
 
   const handleSignOut = async () => {
+    // A guest session cannot be recovered after signing out.
+    if (
+      user?.isGuest &&
+      !window.confirm(
+        'Leave guest mode? You will no longer be able to follow the reports you sent from this device.',
+      )
+    ) {
+      return;
+    }
     try {
       await signOut();
       void navigate('/login', { replace: true });
@@ -61,7 +70,7 @@ function UserMenu() {
 
   return (
     <div className="user-menu">
-      {user && <span className="user-menu__name">{user.fullName}</span>}
+      {user && <span className="user-menu__name">{user.isGuest ? 'Guest' : user.fullName}</span>}
       <Button
         variant="ghost"
         icon="bx-log-out"
@@ -106,6 +115,14 @@ export function AppShell() {
           </div>
         </div>
       </header>
+      {user?.isGuest && (
+        <div className="banner banner--guest" role="status">
+          <Icon name="bx-user" className="banner__icon" />
+          Guest mode: your reports are anonymous and can be followed on this device until you sign
+          out.
+          <Link to="/register">Create an account</Link>
+        </div>
+      )}
       <main id="main" className="app-shell__main" tabIndex={-1}>
         <Suspense fallback={<Spinner label="Loading page" />}>
           <Outlet />
