@@ -31,6 +31,39 @@ export function ImagePicker({ file, onChange, disabled = false }: ImagePickerPro
     };
   }, [file]);
 
+  const handlePick = (picked: File) => {
+    const problem = validateImage(picked);
+    setError(problem);
+    if (problem) return;
+    setPreparing(true);
+    void shrinkImage(picked)
+      .then((ready) => {
+        if (ready) onChange(ready);
+        else setError('This photo could not be read. Choose a JPEG, PNG or WebP image.');
+      })
+      .finally(() => {
+        setPreparing(false);
+      });
+  };
+
+  // Two inputs so citizens choose the source explicitly: `capture` opens the
+  // camera directly on phones; without it the OS shows the gallery/files.
+  // Desktop browsers ignore `capture`, so both open the file dialog there.
+  const sources = [
+    {
+      key: 'camera',
+      capture: true,
+      icon: 'bx-camera',
+      label: file ? 'Retake photo' : 'Take photo',
+    },
+    {
+      key: 'gallery',
+      capture: false,
+      icon: 'bx-image',
+      label: file ? 'Choose another' : 'Choose from gallery',
+    },
+  ] as const;
+
   return (
     <div className="image-picker field">
       <span className="field__label" id={`${id}-label`}>
@@ -40,7 +73,7 @@ export function ImagePicker({ file, onChange, disabled = false }: ImagePickerPro
         Take a photo or choose one from your gallery (up to 50 MB; large photos are resized
         automatically). A photo helps officers find and assess the problem.
       </p>
-      {file && previewUrl ? (
+      {file && previewUrl && (
         <div className="image-picker__preview">
           <img
             className="image-picker__thumb"
@@ -52,49 +85,43 @@ export function ImagePicker({ file, onChange, disabled = false }: ImagePickerPro
             variant="ghost"
             icon="bx-trash"
             aria-label="Remove photo"
-            disabled={disabled}
+            disabled={disabled || preparing}
             onClick={() => {
               onChange(null);
             }}
           />
         </div>
-      ) : (
-        <>
-          <input
-            id={id}
-            className="image-picker__input sr-only"
-            type="file"
-            // No `capture` attribute: it makes phones open the camera directly
-            // and hides the gallery. image/* lets the OS offer both.
-            accept="image/*"
-            disabled={disabled || preparing}
-            aria-labelledby={`${id}-label`}
-            aria-describedby={error ? `${id}-hint ${id}-error` : `${id}-hint`}
-            aria-invalid={error ? true : undefined}
-            onChange={(event) => {
-              const picked = event.target.files?.[0] ?? null;
-              event.target.value = '';
-              if (!picked) return;
-              const problem = validateImage(picked);
-              setError(problem);
-              if (problem) return;
-              setPreparing(true);
-              void shrinkImage(picked)
-                .then((ready) => {
-                  if (ready) onChange(ready);
-                  else setError('This photo could not be read. Choose a JPEG, PNG or WebP image.');
-                })
-                .finally(() => {
-                  setPreparing(false);
-                });
-            }}
-          />
-          <label htmlFor={id} className="image-picker__drop" aria-busy={preparing}>
-            <Icon name="bx-camera" className="image-picker__drop-icon" />
-            <span>{preparing ? 'Preparing photo…' : 'Take or choose a photo'}</span>
-          </label>
-        </>
       )}
+      <div className="image-picker__sources" aria-busy={preparing}>
+        {sources.map((source) => (
+          <div key={source.key} className="image-picker__source">
+            <input
+              id={`${id}-${source.key}`}
+              className="image-picker__input sr-only"
+              type="file"
+              accept="image/*"
+              capture={source.capture ? 'environment' : undefined}
+              disabled={disabled || preparing}
+              aria-describedby={error ? `${id}-hint ${id}-error` : `${id}-hint`}
+              aria-invalid={error ? true : undefined}
+              onChange={(event) => {
+                const picked = event.target.files?.[0] ?? null;
+                event.target.value = '';
+                if (picked) handlePick(picked);
+              }}
+            />
+            <label
+              htmlFor={`${id}-${source.key}`}
+              className={
+                file ? 'image-picker__drop image-picker__drop--compact' : 'image-picker__drop'
+              }
+            >
+              <Icon name={source.icon} className="image-picker__drop-icon" />
+              <span>{preparing ? 'Preparing photo…' : source.label}</span>
+            </label>
+          </div>
+        ))}
+      </div>
       {error && (
         <p className="field__error" id={`${id}-error`} role="alert">
           <Icon name="bx-error-circle" />

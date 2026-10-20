@@ -18,6 +18,37 @@
   cursor: pointer;
 }
 
+/* Camera and gallery side by side; stacked on very narrow screens. */
+.image-picker__sources {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: var(--space-3);
+}
+
+.image-picker__source {
+  display: flex;
+  flex-direction: column;
+}
+
+.image-picker__source .image-picker__drop {
+  flex: 1;
+}
+
+.image-picker__drop--compact {
+  flex-direction: row;
+  justify-content: center;
+  padding: var(--space-3);
+}
+
+.image-picker__drop--compact .image-picker__drop-icon {
+  font-size: 1.25rem;
+}
+
+.image-picker__input:disabled + .image-picker__drop {
+  cursor: progress;
+  opacity: 0.6;
+}
+
 .image-picker__drop:hover {
   border-color: var(--color-brand-600);
 }

@@ -133,6 +133,10 @@
   content: '\eada';
 }
 
+.bx-image::before {
+  content: '\eb1b';
+}
+
 .bx-info-circle::before {
   content: '\eb21';
 }
