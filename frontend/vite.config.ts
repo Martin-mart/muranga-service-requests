@@ -71,11 +71,17 @@ export default defineConfig(({ mode }) => {
       rollupOptions: {
         output: {
           // Long-lived vendor chunks change rarely, so returning users keep them cached.
-          manualChunks: {
-            react: ['react', 'react-dom', 'react-dom/client', 'react-router'],
-            query: ['@tanstack/react-query'],
-            supabase: ['@supabase/supabase-js'],
-            charts: ['recharts'],
+          // Match by package path only: the object form also pulls each entry's
+          // dependencies into its chunk, which made react <-> charts import each
+          // other and crash at startup (React undefined when recharts evaluated).
+          manualChunks(id) {
+            const pkg = /node_modules\/((?:@[^/]+\/)?[^/]+)\//.exec(id)?.[1];
+            if (!pkg) return undefined;
+            if (['react', 'react-dom', 'scheduler', 'react-router'].includes(pkg)) return 'react';
+            if (pkg === '@tanstack/react-query') return 'query';
+            if (pkg.startsWith('@supabase/')) return 'supabase';
+            if (pkg === 'recharts') return 'charts';
+            return undefined;
           },
         },
       },
