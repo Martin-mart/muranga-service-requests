@@ -41,9 +41,11 @@ export function formatRelative(iso: string, now: number = Date.now()): string {
 /** 30.5 -> "1 day 6 h"; 3.25 -> "3.3 h"; null -> "No data". */
 export function formatDuration(hours: number | null): string {
   if (hours === null) return 'No data';
-  if (hours < 24) return `${hours.toFixed(1)} h`;
-  const days = Math.floor(hours / 24);
-  const rest = Math.round(hours - days * 24);
+  if (Math.round(hours * 10) < 240) return `${hours.toFixed(1)} h`;
+  // Round before splitting, or 4 days 23.6 h would print as "4 days 24 h".
+  const total = Math.round(hours);
+  const days = Math.floor(total / 24);
+  const rest = total % 24;
   return `${days} day${days === 1 ? '' : 's'}${rest > 0 ? ` ${rest} h` : ''}`;
 }
 

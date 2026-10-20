@@ -8,6 +8,8 @@ describe('formatDuration', () => {
     [3.25, '3.3 h'],
     [24, '1 day'],
     [54, '2 days 6 h'],
+    [119.6, '5 days'],
+    [23.97, '1 day'],
   ])('%s -> %s', (hours, expected) => {
     expect(formatDuration(hours)).toBe(expected);
   });
