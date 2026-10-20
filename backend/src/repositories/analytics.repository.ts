@@ -60,11 +60,13 @@ export const analyticsRepository: AnalyticsRepository = {
   async get(db, range) {
     // get: true issues a GET (the function is STABLE/read-only), which also
     // makes it eligible for the idempotent-retry policy in resilient fetch.
-    const response = await db.rpc(
-      'get_request_analytics',
-      { p_from: range.from, p_to: range.to },
-      { get: true },
-    );
+    // A GET sends args as query params, where null becomes the string "null"
+    // (not a valid timestamptz), so unset bounds are omitted and the SQL
+    // defaults (null = unbounded) apply.
+    const args: { p_from?: string; p_to?: string } = {};
+    if (range.from) args.p_from = range.from;
+    if (range.to) args.p_to = range.to;
+    const response = await db.rpc('get_request_analytics', args, { get: true });
     throwIfDbError(response.error);
     return analyticsSchema.parse(response.data);
   },
