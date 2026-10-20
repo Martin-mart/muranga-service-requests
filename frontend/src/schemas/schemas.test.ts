@@ -61,13 +61,14 @@ describe('newRequestFormSchema', () => {
 describe('validateImage', () => {
   const file = (type: string, size: number) => new File([new Uint8Array(size)], 'photo', { type });
 
-  it('accepts JPEG, PNG and WebP up to 5 MB', () => {
+  it('accepts images up to 50 MB (large ones are shrunk before upload)', () => {
     expect(validateImage(file('image/jpeg', 1024))).toBeNull();
-    expect(validateImage(file('image/webp', 5 * 1024 * 1024))).toBeNull();
+    expect(validateImage(file('image/jpeg', 12 * 1024 * 1024))).toBeNull();
+    expect(validateImage(file('image/webp', 50 * 1024 * 1024))).toBeNull();
   });
 
-  it('rejects other types and oversized files', () => {
-    expect(validateImage(file('image/svg+xml', 10))).toMatch(/JPEG, PNG or WebP/);
-    expect(validateImage(file('image/png', 5 * 1024 * 1024 + 1))).toMatch(/5 MB/);
+  it('rejects non-images and files over 50 MB', () => {
+    expect(validateImage(file('application/pdf', 10))).toMatch(/JPEG, PNG or WebP/);
+    expect(validateImage(file('image/png', 50 * 1024 * 1024 + 1))).toMatch(/50 MB/);
   });
 });

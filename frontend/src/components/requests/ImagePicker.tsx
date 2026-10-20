@@ -1,7 +1,8 @@
 import { useEffect, useId, useState } from 'react';
 import '../../styles/components/form.css';
 import '../../styles/components/image-picker.css';
-import { ALLOWED_IMAGE_TYPES, validateImage } from '../../schemas/request-form.schema';
+import { validateImage } from '../../schemas/request-form.schema';
+import { shrinkImage } from '../../utils/shrink-image';
 import { Button } from '../ui/Button';
 import { Icon } from '../ui/Icon';
 
@@ -14,6 +15,7 @@ interface ImagePickerProps {
 export function ImagePicker({ file, onChange, disabled = false }: ImagePickerProps) {
   const id = useId();
   const [error, setError] = useState<string | null>(null);
+  const [preparing, setPreparing] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   // Object URLs hold the file in memory until revoked.
@@ -35,7 +37,8 @@ export function ImagePicker({ file, onChange, disabled = false }: ImagePickerPro
         Photo (optional)
       </span>
       <p className="field__hint" id={`${id}-hint`}>
-        JPEG, PNG or WebP, up to 5 MB. A photo helps officers find and assess the problem.
+        Take a photo or choose one from your gallery (up to 50 MB; large photos are resized
+        automatically). A photo helps officers find and assess the problem.
       </p>
       {file && previewUrl ? (
         <div className="image-picker__preview">
@@ -61,9 +64,10 @@ export function ImagePicker({ file, onChange, disabled = false }: ImagePickerPro
             id={id}
             className="image-picker__input sr-only"
             type="file"
-            accept={ALLOWED_IMAGE_TYPES.join(',')}
-            capture="environment"
-            disabled={disabled}
+            // No `capture` attribute: it makes phones open the camera directly
+            // and hides the gallery. image/* lets the OS offer both.
+            accept="image/*"
+            disabled={disabled || preparing}
             aria-labelledby={`${id}-label`}
             aria-describedby={error ? `${id}-hint ${id}-error` : `${id}-hint`}
             aria-invalid={error ? true : undefined}
@@ -73,12 +77,21 @@ export function ImagePicker({ file, onChange, disabled = false }: ImagePickerPro
               if (!picked) return;
               const problem = validateImage(picked);
               setError(problem);
-              if (!problem) onChange(picked);
+              if (problem) return;
+              setPreparing(true);
+              void shrinkImage(picked)
+                .then((ready) => {
+                  if (ready) onChange(ready);
+                  else setError('This photo could not be read. Choose a JPEG, PNG or WebP image.');
+                })
+                .finally(() => {
+                  setPreparing(false);
+                });
             }}
           />
-          <label htmlFor={id} className="image-picker__drop">
+          <label htmlFor={id} className="image-picker__drop" aria-busy={preparing}>
             <Icon name="bx-camera" className="image-picker__drop-icon" />
-            <span>Take or choose a photo</span>
+            <span>{preparing ? 'Preparing photo…' : 'Take or choose a photo'}</span>
           </label>
         </>
       )}

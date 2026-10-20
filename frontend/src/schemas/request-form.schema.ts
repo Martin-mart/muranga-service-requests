@@ -1,6 +1,9 @@
 import { z } from 'zod';
 
+/** Upload limit, mirrors the Storage bucket. Larger photos are shrunk first. */
 export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+/** What a citizen may pick, before shrinking (bounds browser memory use). */
+export const MAX_PICK_BYTES = 50 * 1024 * 1024;
 export const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
 
 export const newRequestFormSchema = z.object({
@@ -20,13 +23,13 @@ export const newRequestFormSchema = z.object({
 
 export type NewRequestFormValues = z.infer<typeof newRequestFormSchema>;
 
-/** Validates a picked image before any upload is attempted. */
+/** Validates a picked file before it is shrunk for upload. */
 export function validateImage(file: File): string | null {
-  if (!(ALLOWED_IMAGE_TYPES as readonly string[]).includes(file.type)) {
-    return 'Choose a JPEG, PNG or WebP image.';
+  if (!file.type.startsWith('image/')) {
+    return 'Choose a photo (JPEG, PNG or WebP).';
   }
-  if (file.size > MAX_IMAGE_BYTES) {
-    return 'The image must be 5 MB or smaller.';
+  if (file.size > MAX_PICK_BYTES) {
+    return 'The photo must be 50 MB or smaller.';
   }
   return null;
 }
