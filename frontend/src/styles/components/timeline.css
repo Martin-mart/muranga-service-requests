@@ -1,0 +1,77 @@
+.timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.timeline__item {
+  position: relative;
+  display: grid;
+  grid-template-columns: 2.25rem 1fr;
+  gap: var(--space-3);
+  padding-bottom: var(--space-5);
+}
+
+/* Connector line between markers. */
+.timeline__item:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  top: 2.25rem;
+  bottom: 0;
+  left: 1.07rem;
+  width: 2px;
+  background: var(--color-border);
+}
+
+.timeline__marker {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: var(--radius-full);
+  border: 2px solid var(--color-border);
+  background: var(--color-surface);
+  font-size: 1.1rem;
+}
+
+.timeline__marker--pending {
+  color: var(--status-pending-fg);
+  border-color: var(--status-pending-border);
+  background: var(--status-pending-bg);
+}
+
+.timeline__marker--in-progress {
+  color: var(--status-progress-fg);
+  border-color: var(--status-progress-border);
+  background: var(--status-progress-bg);
+}
+
+.timeline__marker--resolved {
+  color: var(--status-resolved-fg);
+  border-color: var(--status-resolved-border);
+  background: var(--status-resolved-bg);
+}
+
+.timeline__marker--upcoming {
+  color: var(--color-text-muted);
+  border-style: dashed;
+}
+
+.timeline__title {
+  font-weight: var(--weight-semibold);
+}
+
+.timeline__meta {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.timeline__note {
+  margin-top: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+  font-size: var(--text-sm);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

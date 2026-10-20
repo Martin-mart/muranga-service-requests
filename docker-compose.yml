@@ -1,0 +1,73 @@
+# Local load-balancing demo: 2 stateless API replicas behind nginx (round-robin),
+# sharing rate-limit counters through Redis.
+#
+#   cp backend/.env.example backend/.env   # fill in Supabase values
+#   docker compose up --build
+#   curl -i http://localhost:8080/health   # repeat: X-Upstream alternates between replicas
+#
+# In production the hosting platform's load balancer replaces nginx.
+
+x-api: &api
+  build: ./backend
+  env_file: ./backend/.env
+  environment:
+    PORT: "4000"
+    TRUST_PROXY_HOPS: "1"
+    REDIS_URL: redis://redis:6379
+  depends_on:
+    redis:
+      condition: service_healthy
+  restart: unless-stopped
+  read_only: true
+  tmpfs:
+    - /tmp
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+  healthcheck:
+    test: ["CMD", "wget", "-qO-", "http://127.0.0.1:4000/health"]
+    interval: 10s
+    timeout: 3s
+    retries: 3
+    start_period: 10s
+  deploy:
+    resources:
+      limits:
+        cpus: "0.50"
+        memory: 512M
+  stop_grace_period: 20s
+
+services:
+  api-1:
+    <<: *api
+    hostname: api-1
+
+  api-2:
+    <<: *api
+    hostname: api-2
+
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory", "64mb", "--maxmemory-policy", "allkeys-lru"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 2s
+      retries: 5
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      api-1:
+        condition: service_healthy
+      api-2:
+        condition: service_healthy
+    restart: unless-stopped

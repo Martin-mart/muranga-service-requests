@@ -1,0 +1,67 @@
+/* Scrolls horizontally inside its own box, never the page. */
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.table__caption {
+  text-align: left;
+  padding: var(--space-3) var(--space-4);
+  color: var(--color-text-muted);
+}
+
+.table__head {
+  background: var(--color-surface-muted);
+}
+
+.table__th {
+  text-align: left;
+  padding: var(--space-3) var(--space-4);
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.table__td {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: top;
+}
+
+.table__row:last-child .table__td {
+  border-bottom: 0;
+}
+
+.table__row:hover {
+  background: var(--color-surface-muted);
+}
+
+.table__td--nowrap {
+  white-space: nowrap;
+}
+
+.table__td--truncate {
+  max-width: 22rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.table__link {
+  font-weight: var(--weight-semibold);
+  font-family: var(--font-mono);
+}
+
+.table__muted {
+  display: block;
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+}

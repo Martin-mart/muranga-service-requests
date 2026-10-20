@@ -1,0 +1,866 @@
+openapi: 3.0.3
+info:
+  title: Murang'a County Service Requests API
+  version: 1.0.0
+  description: |
+    REST API for citizens to submit public service requests and for county
+    officers to manage them.
+
+    **Authentication**: send the Supabase Auth access token as
+    `Authorization: Bearer <jwt>`. The API verifies the token, loads the role
+    from the trusted `profiles` table, and executes every query under Postgres
+    Row Level Security as the caller.
+
+    **Errors** always use the `Error` envelope and include a `requestId` (also
+    returned in the `X-Request-Id` header) to quote to support.
+
+    **Pagination** is cursor-based: pass `page.nextCursor` back as `cursor`.
+    Cursors are opaque.
+
+    **Rate limits** are advertised with the IETF `RateLimit` / `RateLimit-Policy`
+    headers; exceeding them returns `429 RATE_LIMITED`.
+  contact:
+    name: County ICT Directorate
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+servers:
+  - url: http://localhost:4000
+    description: Local development
+  - url: http://localhost:8080
+    description: Local load-balanced demo (nginx + 2 replicas)
+  - url: https://muranga-api.onrender.com
+    description: Production (example Render deployment)
+
+tags:
+  - name: Health
+    description: Liveness and readiness probes for load balancers.
+  - name: Auth
+    description: Registration and the current user.
+  - name: Reference data
+    description: Public, cacheable lookup lists.
+  - name: Requests
+    description: Citizens' service requests.
+  - name: Comments
+    description: Messages and officer notes on a request.
+  - name: Notifications
+    description: In-app notifications (also streamed via Supabase Realtime).
+  - name: Admin
+    description: County officer operations. Requires the admin role.
+
+security:
+  - bearerAuth: []
+
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      tags: [Health]
+      summary: Liveness probe
+      security: []
+      responses:
+        '200':
+          description: Process is alive
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HealthReport' }
+
+  /ready:
+    get:
+      operationId: getReady
+      tags: [Health]
+      summary: Readiness probe (checks Supabase connectivity; 503 while draining)
+      security: []
+      responses:
+        '200':
+          description: Ready to receive traffic
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HealthReport' }
+        '503':
+          description: Not ready (dependency down or shutting down)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HealthReport' }
+
+  /api/v1/auth/register:
+    post:
+      operationId: register
+      tags: [Auth]
+      summary: Register a citizen account
+      description: |
+        Creates the Supabase Auth user (CAPTCHA verified by Supabase) and a
+        citizen profile. The response is identical whether or not the email is
+        already registered, to prevent account enumeration. The account is
+        usable after email confirmation. Rate limited to 5 per hour per IP.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegisterInput' }
+      responses:
+        '202':
+          description: Confirmation email sent (if the address can be registered)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [message]
+                    properties:
+                      message: { type: string }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /api/v1/me:
+    get:
+      operationId: getMe
+      tags: [Auth]
+      summary: Current user's profile and trusted role
+      responses:
+        '200':
+          description: Profile
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/Me' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+
+  /api/v1/categories:
+    get:
+      operationId: listCategories
+      tags: [Reference data]
+      summary: Active service categories (cacheable, ETag)
+      security: []
+      responses:
+        '200':
+          description: Categories
+          headers:
+            ETag: { schema: { type: string } }
+            Cache-Control:
+              {
+                schema:
+                  { type: string, example: 'public, max-age=300, stale-while-revalidate=600' },
+              }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Category' }
+        '304': { description: Not modified }
+
+  /api/v1/sub-counties:
+    get:
+      operationId: listSubCounties
+      tags: [Reference data]
+      summary: Murang'a sub-counties (cacheable, ETag)
+      security: []
+      responses:
+        '200':
+          description: Sub-counties
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/ReferenceItem' }
+        '304': { description: Not modified }
+
+  /api/v1/requests:
+    post:
+      operationId: createRequest
+      tags: [Requests]
+      summary: Submit a service request
+      description: |
+        Requires a verified email. At most 10 requests per citizen per 24 hours
+        (enforced in the database). Supplying an `Idempotency-Key` makes
+        retries safe: a repeated key returns the original request with 200.
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: false
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateRequestInput' }
+      responses:
+        '201':
+          description: Created
+          headers:
+            Location: { schema: { type: string } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/RequestSummary' }
+        '200':
+          description: Idempotent replay of an earlier submission
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/RequestSummary' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+        '429':
+          description: Rate limited (`RATE_LIMITED`) or daily quota reached (`DAILY_LIMIT_REACHED`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+    get:
+      operationId: listMyRequests
+      tags: [Requests]
+      summary: The caller's own requests, newest first
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Page of requests
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RequestPage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+
+  /api/v1/requests/{id}:
+    get:
+      operationId: getRequest
+      tags: [Requests]
+      summary: One request with its status timeline and a signed image URL
+      description: Citizens can only read their own requests; others return 404 (no existence oracle).
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Request detail
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/RequestView' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+
+  /api/v1/requests/{id}/image-upload-url:
+    post:
+      operationId: createImageUploadUrl
+      tags: [Requests]
+      summary: Get a signed URL to upload one image for a pending request
+      description: |
+        The server picks a random object key inside the caller's folder,
+        registers it on the request, and returns a Supabase Storage signed
+        upload URL. The client then `PUT`s the file bytes to `uploadUrl` with
+        the given `Content-Type`. Storage enforces 5 MB and JPEG/PNG/WebP.
+        Rate limited to 10 per 15 minutes per user.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [contentType, sizeBytes]
+              properties:
+                contentType: { type: string, enum: [image/jpeg, image/png, image/webp] }
+                sizeBytes: { type: integer, minimum: 1, maximum: 5242880 }
+      responses:
+        '201':
+          description: Upload ticket
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/ImageUploadTicket' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '413': { $ref: '#/components/responses/PayloadTooLarge' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /api/v1/requests/{id}/comments:
+    get:
+      operationId: listComments
+      tags: [Comments]
+      summary: Messages on a request, oldest first
+      description: Citizens see only public messages on their own requests; officers also see internal notes.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Page of comments
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, page]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Comment' }
+                  page: { $ref: '#/components/schemas/PageInfo' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+    post:
+      operationId: createComment
+      tags: [Comments]
+      summary: Add a message (citizens) or a note (officers; may be internal)
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                body: { type: string, minLength: 1, maxLength: 2000 }
+                isPublic:
+                  type: boolean
+                  default: true
+                  description: Ignored for citizens (always public).
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/Comment' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /api/v1/notifications:
+    get:
+      operationId: listNotifications
+      tags: [Notifications]
+      summary: The caller's notifications, newest first, with unread count
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Page of notifications
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, page, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Notification' }
+                  page: { $ref: '#/components/schemas/PageInfo' }
+                  meta:
+                    type: object
+                    required: [unreadCount]
+                    properties:
+                      unreadCount: { type: integer }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+
+  /api/v1/notifications/{id}/read:
+    patch:
+      operationId: markNotificationRead
+      tags: [Notifications]
+      summary: Mark one notification as read (idempotent)
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Updated notification
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/Notification' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/admin/requests:
+    get:
+      operationId: adminListRequests
+      tags: [Admin]
+      summary: All requests with filters and search (admin only)
+      parameters:
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/RequestStatus' }
+        - name: categoryId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: subCountyId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: search
+          in: query
+          description: Reference number (exact) or full-text search over location and description.
+          schema: { type: string, maxLength: 100 }
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Page of requests (each includes `citizen`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RequestPage' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /api/v1/admin/requests/{id}/status:
+    patch:
+      operationId: adminChangeStatus
+      tags: [Admin]
+      summary: Advance a request's status, with an optional note shown to the citizen
+      description: |
+        Only `pending -> in_progress -> resolved` is allowed (enforced by a
+        database trigger). The change, the note and the actor are written to
+        the status history and the citizen is notified, atomically.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string, enum: [in_progress, resolved] }
+                note: { type: string, minLength: 1, maxLength: 1000 }
+      responses:
+        '200':
+          description: New status
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/StatusChangeResult' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: Illegal transition (`INVALID_TRANSITION`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+
+  /api/v1/admin/analytics:
+    get:
+      operationId: adminGetAnalytics
+      tags: [Admin]
+      summary: Aggregate statistics (admin only; private cache 60 s)
+      parameters:
+        - name: from
+          in: query
+          schema: { type: string, format: date-time }
+        - name: to
+          in: query
+          schema: { type: string, format: date-time }
+      responses:
+        '200':
+          description: Analytics
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/Analytics' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT (Supabase Auth access token)
+
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    Cursor:
+      name: cursor
+      in: query
+      description: Opaque cursor from a previous page's `page.nextCursor`.
+      schema: { type: string, maxLength: 300 }
+    Limit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
+
+  responses:
+    BadRequest:
+      description: Malformed request (e.g. invalid JSON or cursor)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Unauthenticated:
+      description: Missing, invalid or expired token
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Forbidden:
+      description: Authenticated but not allowed (role or RLS)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NotFound:
+      description: Not found (or not visible to the caller)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Conflict:
+      description: Conflicts with current state
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    PayloadTooLarge:
+      description: Body or declared file too large
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    ValidationFailed:
+      description: Field validation failed; see `details`
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    RateLimited:
+      description: Too many requests
+      headers:
+        RateLimit: { schema: { type: string } }
+        RateLimit-Policy: { schema: { type: string } }
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, requestId]
+          properties:
+            code:
+              type: string
+              enum:
+                - BAD_REQUEST
+                - VALIDATION_FAILED
+                - UNAUTHENTICATED
+                - FORBIDDEN
+                - NOT_FOUND
+                - CONFLICT
+                - INVALID_TRANSITION
+                - PAYLOAD_TOO_LARGE
+                - RATE_LIMITED
+                - DAILY_LIMIT_REACHED
+                - UPSTREAM_UNAVAILABLE
+                - INTERNAL
+            message: { type: string }
+            requestId: { type: string }
+            details:
+              type: array
+              items:
+                type: object
+                required: [path, message]
+                properties:
+                  path: { type: string }
+                  message: { type: string }
+
+    HealthReport:
+      type: object
+      required: [status, instance, uptimeSeconds]
+      properties:
+        status: { type: string, enum: [ok, unavailable] }
+        instance: { type: string, description: Hostname of the replica that answered }
+        uptimeSeconds: { type: integer }
+        checks:
+          type: object
+          additionalProperties: { type: string, enum: [ok, failing] }
+
+    RegisterInput:
+      type: object
+      required: [email, password, fullName]
+      properties:
+        email: { type: string, format: email, maxLength: 254 }
+        password:
+          type: string
+          minLength: 10
+          maxLength: 72
+          description: Must contain lowercase, uppercase and a digit.
+        fullName: { type: string, minLength: 2, maxLength: 100 }
+        phone:
+          type: string
+          description: Kenyan mobile (07.., 01.., +2547..). Normalised to E.164.
+        captchaToken:
+          {
+            type: string,
+            description: Cloudflare Turnstile token (required when CAPTCHA is enabled),
+          }
+
+    Me:
+      type: object
+      required: [id, email, role, fullName, phone]
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string, nullable: true }
+        role: { $ref: '#/components/schemas/Role' }
+        fullName: { type: string }
+        phone: { type: string, nullable: true }
+
+    Role:
+      type: string
+      enum: [citizen, admin]
+
+    RequestStatus:
+      type: string
+      enum: [pending, in_progress, resolved]
+
+    ReferenceItem:
+      type: object
+      required: [id, slug, name]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        name: { type: string }
+
+    Category:
+      allOf:
+        - $ref: '#/components/schemas/ReferenceItem'
+        - type: object
+          required: [description]
+          properties:
+            description: { type: string, nullable: true }
+
+    CreateRequestInput:
+      type: object
+      required: [categoryId, subCountyId, locationText, description]
+      properties:
+        categoryId: { type: string, format: uuid }
+        subCountyId: { type: string, format: uuid }
+        locationText: { type: string, minLength: 3, maxLength: 200 }
+        description: { type: string, minLength: 10, maxLength: 2000 }
+        latitude:
+          type: number
+          nullable: true
+          minimum: -4.9
+          maximum: 5.1
+          description: Must be provided together with longitude.
+        longitude: { type: number, nullable: true, minimum: 33.8, maximum: 42.0 }
+
+    CitizenSummary:
+      type: object
+      nullable: true
+      required: [id, fullName, phone]
+      properties:
+        id: { type: string, format: uuid }
+        fullName: { type: string }
+        phone: { type: string, nullable: true }
+
+    RequestSummary:
+      type: object
+      required:
+        [
+          id,
+          referenceNumber,
+          status,
+          locationText,
+          description,
+          category,
+          subCounty,
+          createdAt,
+          updatedAt,
+          resolvedAt,
+          citizen,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        referenceNumber: { type: string, example: MRG-2026-000123 }
+        status: { $ref: '#/components/schemas/RequestStatus' }
+        locationText: { type: string }
+        description: { type: string }
+        category: { $ref: '#/components/schemas/ReferenceItem' }
+        subCounty: { $ref: '#/components/schemas/ReferenceItem' }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        resolvedAt: { type: string, format: date-time, nullable: true }
+        citizen:
+          allOf:
+            - $ref: '#/components/schemas/CitizenSummary'
+          description: Populated for admin views only.
+
+    StatusHistoryEntry:
+      type: object
+      required: [id, fromStatus, toStatus, actorRole, actorName, note, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        fromStatus:
+          type: string
+          enum: [pending, in_progress, resolved]
+          nullable: true
+          description: Null for the initial "received" entry.
+        toStatus: { $ref: '#/components/schemas/RequestStatus' }
+        actorRole: { $ref: '#/components/schemas/Role' }
+        actorName: { type: string, nullable: true, description: Visible to admins only. }
+        note: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+
+    RequestView:
+      allOf:
+        - $ref: '#/components/schemas/RequestSummary'
+        - type: object
+          required: [latitude, longitude, imageUrl, history]
+          properties:
+            latitude: { type: number, nullable: true }
+            longitude: { type: number, nullable: true }
+            imageUrl:
+              type: string
+              nullable: true
+              description: Short-lived signed URL (default 10 minutes).
+            history:
+              type: array
+              items: { $ref: '#/components/schemas/StatusHistoryEntry' }
+
+    PageInfo:
+      type: object
+      required: [nextCursor]
+      properties:
+        nextCursor: { type: string, nullable: true }
+
+    RequestPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/RequestSummary' }
+        page: { $ref: '#/components/schemas/PageInfo' }
+
+    ImageUploadTicket:
+      type: object
+      required: [uploadUrl, path, contentType, maxBytes]
+      properties:
+        uploadUrl: { type: string, description: Supabase Storage signed upload URL (PUT) }
+        path: { type: string }
+        contentType: { type: string, enum: [image/jpeg, image/png, image/webp] }
+        maxBytes: { type: integer }
+
+    Comment:
+      type: object
+      required: [id, requestId, authorRole, authorName, body, isPublic, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        requestId: { type: string, format: uuid }
+        authorRole: { $ref: '#/components/schemas/Role' }
+        authorName: { type: string, nullable: true }
+        body: { type: string }
+        isPublic: { type: boolean }
+        createdAt: { type: string, format: date-time }
+
+    Notification:
+      type: object
+      required: [id, requestId, type, title, body, readAt, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        requestId: { type: string, format: uuid, nullable: true }
+        type: { type: string, enum: [status_changed, comment_added] }
+        title: { type: string }
+        body: { type: string }
+        readAt: { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time }
+
+    StatusChangeResult:
+      type: object
+      required: [id, status, resolvedAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        status: { $ref: '#/components/schemas/RequestStatus' }
+        resolvedAt: { type: string, format: date-time, nullable: true }
+        updatedAt: { type: string, format: date-time }
+
+    BreakdownRow:
+      type: object
+      required: [id, name, total, open, resolved, avgResolutionHours]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        total: { type: integer }
+        open: { type: integer }
+        resolved: { type: integer }
+        avgResolutionHours: { type: number, nullable: true }
+
+    Analytics:
+      type: object
+      required: [totals, avgResolutionHours, byCategory, bySubCounty, daily]
+      properties:
+        totals:
+          type: object
+          required: [total, pending, inProgress, resolved, open]
+          properties:
+            total: { type: integer }
+            pending: { type: integer }
+            inProgress: { type: integer }
+            resolved: { type: integer }
+            open: { type: integer }
+        avgResolutionHours: { type: number, nullable: true }
+        byCategory:
+          type: array
+          items: { $ref: '#/components/schemas/BreakdownRow' }
+        bySubCounty:
+          type: array
+          items: { $ref: '#/components/schemas/BreakdownRow' }
+        daily:
+          type: array
+          items:
+            type: object
+            required: [day, created, resolved]
+            properties:
+              day: { type: string, format: date }
+              created: { type: integer }
+              resolved: { type: integer }

@@ -1,0 +1,60 @@
+.image-picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.image-picker__drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-6) var(--space-4);
+  border: 2px dashed var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
+  text-align: center;
+  cursor: pointer;
+}
+
+.image-picker__drop:hover {
+  border-color: var(--color-brand-600);
+}
+
+/* The native input stays focusable/keyboard-operable; its label is the drop zone. */
+.image-picker__input:focus-visible + .image-picker__drop {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.image-picker__drop-icon {
+  font-size: 2rem;
+  color: var(--color-brand-700);
+}
+
+.image-picker__preview {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.image-picker__thumb {
+  width: 4.5rem;
+  height: 4.5rem;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+}
+
+.image-picker__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-sm);
+}

@@ -1,0 +1,23 @@
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4) 0;
+}
+
+.pager__status {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.pager__buttons {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.load-more {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-4) 0;
+}
