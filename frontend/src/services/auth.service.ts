@@ -63,7 +63,7 @@ export async function continueAsGuest(captchaToken?: string): Promise<void> {
   if (error) {
     const message =
       error.code === 'anonymous_provider_disabled'
-        ? 'Reporting without an account is not available right now. Please create an account.'
+        ? 'Anonymous reporting is not available right now. Please create an account.'
         : error.code === 'captcha_failed'
           ? 'CAPTCHA verification failed. Please try again.'
           : 'Could not start guest mode. Please try again.';

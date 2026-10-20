@@ -12,9 +12,9 @@ import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { errorMessage } from '../../services/api-client';
 import { captchaEnabled } from '../../utils/captcha';
 
-/** Report without an account: starts a guest session, then opens the form. */
+/** Report anonymously: starts a guest session, then opens the form. */
 export default function GuestPage() {
-  useDocumentTitle('Report without an account');
+  useDocumentTitle('Report anonymously');
   const { status, user, continueAsGuest } = useAuth();
   const navigate = useNavigate();
   const captchaRef = useRef<TurnstileInstance | undefined>(undefined);
@@ -51,10 +51,10 @@ export default function GuestPage() {
       <Card as="section" className="auth-card" aria-labelledby="guest-title">
         <div className="auth-card__header">
           <span className="auth-card__icon">
-            <Icon name="bx-user" />
+            <Icon name="bx-lock-alt" />
           </span>
           <h1 className="auth-card__title" id="guest-title">
-            Report without an account
+            Report anonymously
           </h1>
           <p className="auth-card__subtitle">
             No email or password needed. Your report is anonymous: county officers will not see who

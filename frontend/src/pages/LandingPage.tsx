@@ -63,8 +63,8 @@ export default function LandingPage() {
               <ButtonLink to="/login" size="lg" variant="secondary">
                 Sign in
               </ButtonLink>
-              <ButtonLink to="/guest" size="lg" variant="ghost" icon="bx-user">
-                Report without an account
+              <ButtonLink to="/guest" size="lg" icon="bx-lock-alt" className="hero__anonymous">
+                Report anonymously
               </ButtonLink>
             </>
           )}

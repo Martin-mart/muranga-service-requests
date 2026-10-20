@@ -153,3 +153,22 @@
   font-size: 1.5rem;
   color: var(--color-brand-700);
 }
+
+/* Report anonymously: its own row and an amber fill so it stands out on the
+   green hero next to the white primary and outlined secondary buttons. */
+.hero .hero__anonymous {
+  flex-basis: 100%;
+  background: #fbbf24;
+  color: #1c1300;
+  border-color: #fbbf24;
+}
+
+.hero .hero__anonymous:hover {
+  background: #fcd34d;
+}
+
+@media (min-width: 48rem) {
+  .hero .hero__anonymous {
+    flex-basis: auto;
+  }
+}

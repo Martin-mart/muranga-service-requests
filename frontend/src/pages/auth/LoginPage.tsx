@@ -6,7 +6,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router';
 import '../../styles/pages/auth.css';
 import { CaptchaField } from '../../components/auth/CaptchaField';
 import { Alert } from '../../components/ui/Alert';
-import { Button } from '../../components/ui/Button';
+import { Button, ButtonLink } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Icon } from '../../components/ui/Icon';
 import { Input } from '../../components/ui/Input';
@@ -92,9 +92,17 @@ export default function LoginPage() {
           </Button>
         </form>
         <p className="auth-card__footer">
-          New here? <Link to="/register">Create an account</Link> or{' '}
-          <Link to="/guest">report without an account</Link>
+          New here? <Link to="/register">Create an account</Link>
         </p>
+        <ButtonLink
+          to="/guest"
+          variant="secondary"
+          block
+          icon="bx-lock-alt"
+          className="auth-card__alt"
+        >
+          Report anonymously
+        </ButtonLink>
       </Card>
     </div>
   );

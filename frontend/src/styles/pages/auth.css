@@ -56,3 +56,7 @@
   font-size: var(--text-sm);
   color: var(--color-text-muted);
 }
+
+.auth-card__alt {
+  margin-top: var(--space-3);
+}
