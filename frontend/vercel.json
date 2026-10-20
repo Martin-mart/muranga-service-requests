@@ -10,7 +10,7 @@
       "headers": [
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' https://challenges.cloudflare.com; style-src 'self'; img-src 'self' data: blob: https://*.supabase.co; font-src 'self'; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.onrender.com; frame-src https://challenges.cloudflare.com; worker-src 'self'; manifest-src 'self'; media-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests"
+          "value": "default-src 'self'; script-src 'self' https://challenges.cloudflare.com; style-src 'self'; img-src 'self' data: blob: https://uxqxbiitcrqjewnzgtvj.supabase.co; font-src 'self'; connect-src 'self' https://uxqxbiitcrqjewnzgtvj.supabase.co wss://uxqxbiitcrqjewnzgtvj.supabase.co https://muranga-api.vercel.app; frame-src https://challenges.cloudflare.com; worker-src 'self'; manifest-src 'self'; media-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests"
         },
         {
           "key": "Strict-Transport-Security",
@@ -31,7 +31,7 @@
       "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
     },
     {
-      "source": "/(sw.js|workbox-(.*).js|manifest.webmanifest|index.html)",
+      "source": "/(sw\\.js|workbox-.+\\.js|manifest\\.webmanifest|index\\.html)",
       "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
     }
   ]
